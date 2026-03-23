@@ -46,16 +46,34 @@ checkTimeout() {
 }
 
 saveSelection() {
-    cat > "${FETCH_FILE}" << EOF
-LAST_FETCH=${NOW}
-old_objectId=${objectId}
-old_field=${field}
-EOF
+    # Sanitize values: strip newlines and carriage returns to prevent a
+    # newline-containing objectId or field from injecting shell statements
+    # into the file that would be executed when it is read back.
+    local _safe_id _safe_field
+    _safe_id="${objectId//$'\n'/}"
+    _safe_id="${_safe_id//$'\r'/}"
+    _safe_field="${field//$'\n'/}"
+    _safe_field="${_safe_field//$'\r'/}"
+    printf 'LAST_FETCH=%s\nold_objectId=%s\nold_field=%s\n' \
+        "${NOW}" "${_safe_id}" "${_safe_field}" > "${FETCH_FILE}"
 }
 
 getSelection() {
     LAST_FETCH=0
-    [ -f "${FETCH_FILE}" ] && . "${FETCH_FILE}"
+    old_objectId=""
+    old_field=""
+    # Read the file line-by-line without sourcing it.
+    # Only the three expected variable names are assigned; any other
+    # content (including injected shell commands) is silently ignored.
+    if [ -f "${FETCH_FILE}" ]; then
+        while IFS='=' read -r _key _val; do
+            case "${_key}" in
+                LAST_FETCH)   LAST_FETCH="${_val}"   ;;
+                old_objectId) old_objectId="${_val}" ;;
+                old_field)    old_field="${_val}"    ;;
+            esac
+        done < "${FETCH_FILE}"
+    fi
 }
 
 
