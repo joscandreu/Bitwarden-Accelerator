@@ -68,9 +68,12 @@ if [ $# == 0 ] && [ "${browserURL}" != "" ]; then
 	      | cut -d: -f1 \
 	      | awk -F . '{if (NF>1) {printf("%s.", $(NF-1))} printf("%s", $NF)}')
 
-    # Filter search by URIs matching ${URL}
+    # Filter search by URIs matching ${URL}.
+    # Pass URL via --arg so it is treated as a literal string by jq's
+    # regex engine, never as injected jq code.
     q "${URL}" "./icons/${focusedapp}.png" "" "${old_objectId}" \
-      | jq '.[] | [ select(.variables.uris[] | test("'"${URL}"'"; "i")) ] | unique_by(.id)' \
+      | jq --arg url "${URL}" \
+           '.[] | [ select(.variables.uris[] | test($url; "i")) ] | unique_by(.id)' \
 	   >> "${RESULTS_DIR}"/2
 fi
 
