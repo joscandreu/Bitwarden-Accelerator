@@ -36,12 +36,16 @@ fi
 ##################################################
 # Unlock
 
-# Try JSON payload
-RESPONSE=$(curl -s -H 'Content-Type: application/json' -d '{"password": "'"${p}"'"}' "${API}"/unlock)
+# Build JSON payload safely — never interpolate ${p} into a string literal
+JSON_PAYLOAD=$(jq -n --arg password "${p}" '{"password": $password}')
 
-# Try key=value payload
+# Try JSON payload
+RESPONSE=$(curl -s -H 'Content-Type: application/json' -d "${JSON_PAYLOAD}" "${API}"/unlock)
+
+# Try key=value payload (URL-encode the password to prevent & injection)
 if [ "$(jq -j '.success' <<< "${RESPONSE}")" != "true" ]; then
-    RESPONSE=$(curl -s -d "password=${p}" "${API}"/unlock)
+    ENC_PASS=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.stdin.read(), safe=''))" <<< "${p}")
+    RESPONSE=$(curl -s -d "password=${ENC_PASS}" "${API}"/unlock)
 fi
 
 ##################################################
