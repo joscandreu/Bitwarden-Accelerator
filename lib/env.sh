@@ -14,7 +14,17 @@ SyncTime=${SyncTime:-30}
 
 # Bitwarden server
 bwhost=${bwhost:-localhost}
-bwport=${bwport:-8087}
+# Load the port written by start_server.sh; fall back to 8087 if not yet started.
+# The port file is written with 0600 permissions so other local processes cannot
+# trivially read which port the API is bound to.
+BWPORT_FILE="${alfred_workflow_cache}/bwport"
+if [ -z "${bwport}" ]; then
+    if [ -f "${BWPORT_FILE}" ]; then
+        bwport=$(cat "${BWPORT_FILE}")
+    else
+        bwport=8087
+    fi
+fi
 [ "${serverUrl}" == "bitwarden.eu" ] && serverUrl="vault.bitwarden.eu"
 
 export API=http://"${bwhost}":"${bwport}"
