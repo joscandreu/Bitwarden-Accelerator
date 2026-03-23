@@ -20,7 +20,8 @@ if [ "${pam_tid}" == 1 ]; then
     TID=$?
 
     if [ ${TID} == 0 ]; then
-	p=$(sudo -H sh -c 'cd ; cat bwpass.${SUDO_USER}')
+	p=$(/usr/bin/security find-generic-password \
+	    -a "${USER}" -s "BW-Accelerator-MasterPass" -w 2>/dev/null)
     fi
 fi
 
@@ -50,10 +51,12 @@ fi
 if [ "${pam_tid}" == 1 ] && [ ${TID} == 0 ]; then
     if [ "$(jq -j '.success' <<< "${RESPONSE}")" != "true" ]; then
 	# Master password was incorrect.  Remove it from the cache.
-	sudo -H sh -c 'cd ; rm -f bwpass.${SUDO_USER}'
+	/usr/bin/security delete-generic-password \
+	    -a "${USER}" -s "BW-Accelerator-MasterPass" 2>/dev/null
     else
-	# Master password was correct.  Store it in the cache.
-	sudo -H --preserve-env=p sh -c 'cd ; umask 077 ; echo "${p}" > bwpass.${SUDO_USER}'
+	# Master password was correct.  Store it in the Keychain (encrypted).
+	/usr/bin/security add-generic-password \
+	    -a "${USER}" -s "BW-Accelerator-MasterPass" -w "${p}" -U 2>/dev/null
     fi
 fi
 
