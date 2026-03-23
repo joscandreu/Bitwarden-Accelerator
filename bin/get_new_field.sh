@@ -17,9 +17,14 @@ function mkchange() {
 	    | curl -s -H 'Content-Type: application/json' -T - "${URL}" \
 	    | jq .success
     else
-	# Update item
+	# Update item.
+	# Extract the user-supplied value and pass it via --arg so jq treats
+	# it as a literal string — a bare " in the value cannot break out of
+	# the string context and inject jq code.
+	# Use -f3- (not -f3) to preserve colons inside the value itself.
+	NEW_VALUE=$(cut -d: -f3- <<< "${new}")
 	curl -s "${URL}" \
-	    | jq ".data | ${jqItem} |= \"$(cut -d: -f3 <<< "${new}")\"" \
+	    | jq --arg v "${NEW_VALUE}" ".data | ${jqItem} |= \$v" \
 	    | curl -s -H 'Content-Type: application/json' -T - "${URL}" \
 	    | jq .success
     fi
