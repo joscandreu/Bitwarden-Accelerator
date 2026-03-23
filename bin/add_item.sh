@@ -57,14 +57,20 @@ fi
 
 [ "${PASSWORD}" == "" ] && exit
 
-# Build payload
-PAYLOAD='{ "type": 1, "name": "'"${SITE}"'"'
-[ "${#ORGANIZATION_ID}" -gt 1 ] && PAYLOAD+=',"organizationId": "'"${ORGANIZATION_ID}"'"'
-PAYLOAD+=',"login": {'
-PAYLOAD+=' "username": "'"${USERNAME}"'"'
-PAYLOAD+=',"password": "'"${PASSWORD}"'"'
-PAYLOAD+=',"uris": [ { "match": null, "uri": "'"${URL}"'" } ]'
-PAYLOAD+='} }'
+# Build payload — use jq --arg so all user values are safely escaped
+PAYLOAD=$(jq -n \
+    --arg name     "${SITE}" \
+    --arg username "${USERNAME}" \
+    --arg password "${PASSWORD}" \
+    --arg uri      "${URL}" \
+    '{type:1, name:$name,
+      login:{username:$username, password:$password,
+             uris:[{match:null, uri:$uri}]}}')
+
+if [ "${#ORGANIZATION_ID}" -gt 1 ]; then
+    PAYLOAD=$(jq --arg oid "${ORGANIZATION_ID}" \
+        '. + {organizationId: $oid}' <<< "${PAYLOAD}")
+fi
 
 # Add item
 S=$(curl -s -H 'Content-Type: application/json' -d "${PAYLOAD}" "${API}"/object/item | jq -j .success)
