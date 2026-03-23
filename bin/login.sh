@@ -46,7 +46,14 @@ case "${loginMethod}" in
 	    dialog+="\n\n"
 	    dialog+="Select Fix to open workflow configuration or Login to try anyway."
 
-	    A=$(osascript -e 'display dialog "'"${dialog}"'" with icon caution with title "'"${title}"'" buttons '"${buttons}"' default button "Fix"')
+	    # Pass dialog text and title as positional arguments to an AppleScript
+	    # 'on run' handler — no shell variable is embedded in the script body,
+	    # so a double-quote in either value cannot inject AppleScript code.
+	    A=$(osascript \
+		-e 'on run {dlg, ttl}' \
+		-e '  return button returned of (display dialog dlg with icon caution with title ttl buttons {"Fix", "Login", "Cancel"} default button "Fix")' \
+		-e 'end run' \
+		-- "${dialog}" "${title}")
 
 	    case "${A}" in
 		"button returned:Fix")

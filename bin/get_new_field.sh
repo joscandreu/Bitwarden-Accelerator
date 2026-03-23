@@ -27,33 +27,48 @@ function mkchange() {
     saveSync
 }
 
-# First dialog to get action
+# First dialog: prompt for new value or removal.
+# All dynamic values (prompt text, field name) are passed as positional
+# arguments to an AppleScript 'on run' handler — never interpolated into
+# the script body — so a double-quote in either value cannot inject code.
 function mkscript1() {
-    script='display dialog "'"${1}"'"'
-    script="${script} buttons { \"OK\", \"Remove ${editField}\", \"Cancel\" }"
-    script="${script} default button \"OK\""
-    script="${script} default answer \"\""
-    script="${script} with title \"Change ${editField}\""
-    [ "${editField}" == "password" ] && script="${script} with hidden answer"
+    local prompt="${1}"
+    if [ "${editField}" == "password" ]; then
+	new=$(2>&- osascript \
+	    -e 'on run {prompt, field}' \
+	    -e '  set dlg to display dialog prompt buttons {"OK", "Remove " & field, "Cancel"} default button "OK" default answer "" with title ("Change " & field) with hidden answer' \
+	    -e '  return (button returned of dlg) & ":" & (text returned of dlg)' \
+	    -e 'end run' \
+	    -- "${prompt}" "${editField}")
+    else
+	new=$(2>&- osascript \
+	    -e 'on run {prompt, field}' \
+	    -e '  set dlg to display dialog prompt buttons {"OK", "Remove " & field, "Cancel"} default button "OK" default answer "" with title ("Change " & field)' \
+	    -e '  return (button returned of dlg) & ":" & (text returned of dlg)' \
+	    -e 'end run' \
+	    -- "${prompt}" "${editField}")
+    fi
 }
 
-# Second dialog to confirm removal
+# Second dialog: confirm field removal.
 function mkscript2() {
-    script='display dialog "'"${1}"'"'
-    script="${script} buttons { \"Cancel\", \"OK\" }"
-    script="${script} default button \"Cancel\""
-    script="${script} with title \"Remove ${editField}\""
-    script="${script} with icon caution"
+    local prompt="${1}"
+    yorn=$(2>&- osascript \
+	-e 'on run {prompt, field}' \
+	-e '  return button returned of (display dialog prompt buttons {"Cancel", "OK"} default button "Cancel" with title ("Remove " & field) with icon caution)' \
+	-e 'end run' \
+	-- "${prompt}" "${editField}")
 }
 
-# Third dialog to confirm entry
+# Third dialog: confirm new password entry.
 function mkscript3() {
-    script='display dialog "'"${1}"'"'
-    script="${script} buttons { \"OK\", \"Cancel\" }"
-    script="${script} default button \"OK\""
-    script="${script} default answer \"\""
-    script="${script} with title \"Change ${editField}\""
-    [ "${editField}" == "password" ] && script="${script} with hidden answer"
+    local prompt="${1}"
+    again=$(2>&- osascript \
+	-e 'on run {prompt, field}' \
+	-e '  set dlg to display dialog prompt buttons {"OK", "Cancel"} default button "OK" default answer "" with title ("Change " & field) with hidden answer' \
+	-e '  return (button returned of dlg) & ":" & (text returned of dlg)' \
+	-e 'end run' \
+	-- "${prompt}" "${editField}")
 }
 
 # Get item path to edit
@@ -77,22 +92,24 @@ case "${editField}" in
 	jqItem=".name"
 	;;
     *)
-	osascript -e 'display notification "Unknown field: '"${editField}"'"'
+	osascript \
+	    -e 'on run {f}' \
+	    -e '  display notification ("Unknown field: " & f)' \
+	    -e 'end run' \
+	    -- "${editField}"
 	exit 0
 esac
 
-# Prompt for new value
+# Prompt for new value (mkscript1 sets ${new} directly)
 mkscript1 "Enter new ${editField}:"
-new=$(2>&- osascript -e "${script}")
 
 # Exit if canceled or no entry
 [ "${new}" == "" ] && exit 0
 [ "${new}" == "button returned:OK, text returned:" ] && exit 0
 
-# Confirm removal
+# Confirm removal (mkscript2 sets ${yorn} directly)
 if [[ "${new}" =~ "button returned:Remove" ]]; then
     mkscript2 "Are you sure you want to remove ${editField}?"
-    yorn=$(2>&- osascript -e "${script}")
 
     # Exit if canceled
     [ "${yorn}" != "button returned:OK" ] && exit 0
@@ -100,10 +117,9 @@ if [[ "${new}" =~ "button returned:Remove" ]]; then
     op="remove"
 fi
 
-# Confirm value if password and not removing
+# Confirm value if password and not removing (mkscript3 sets ${again} directly)
 if [ "${editField}" == "Password" ] && [ "${op}" != "remove" ]; then
     mkscript3 "Confirm new password"
-    again=$(2>&- osascript -e "${script}")
 
     # Exit if canceled
     [ "${again}" == "" ] && exit 0

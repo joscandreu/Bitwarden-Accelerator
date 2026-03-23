@@ -64,7 +64,12 @@ read -r MSG<<EOF
 ${alfred_workflow_name} needs to change your sudo configuration to enable Touch ID.\n\nClick OK to continue.\n\nSee the documentation for more information.
 EOF
 
-A=$(/usr/bin/osascript -e "display alert \"${MSG}\" as critical buttons { \"Cancel\", \"OK\" } default button \"Cancel\"")
+# Pass MSG as a positional argument — no shell variable in the script body.
+A=$(/usr/bin/osascript \
+    -e 'on run {msg}' \
+    -e '  return button returned of (display alert msg as critical buttons {"Cancel", "OK"} default button "Cancel")' \
+    -e 'end run' \
+    -- "${MSG}")
 
 if [ "${A}" == "button returned:Cancel" ]; then exit 1; fi
 
