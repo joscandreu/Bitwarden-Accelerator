@@ -7,8 +7,29 @@ NOW=$(date +%s)
 
 # Workflow
 alfred_workflow_cache=${alfred_workflow_cache:-"."}
-export PATH="${alfred_workflow_cache}":${PATH}
+# Do NOT prepend alfred_workflow_cache to PATH.
+# The cache directory is user-writable; prepending it allows any process with
+# write access there to shadow system binaries (curl, python3, jq, ...) with
+# malicious replacements.  Instead, resolve bw to an explicit absolute path.
 LOG_FILE="${alfred_workflow_cache}"/"${alfred_workflow_bundleid}".log
+
+# Resolve the bw binary to an absolute path once at startup.
+# The workflow installs bw inside the cache dir (check_environment.sh);
+# prefer that copy, then fall back to common system locations.
+# All scripts must use "${BW_BIN}" instead of bare 'bw'.
+if [ -z "${BW_BIN}" ]; then
+    if [ -x "${alfred_workflow_cache}/bw" ]; then
+        BW_BIN="${alfred_workflow_cache}/bw"
+    else
+        for _candidate in /usr/local/bin/bw /opt/homebrew/bin/bw /usr/bin/bw; do
+            if [ -x "${_candidate}" ]; then
+                BW_BIN="${_candidate}"
+                break
+            fi
+        done
+    fi
+    export BW_BIN
+fi
 
 SyncTime=${SyncTime:-30}
 

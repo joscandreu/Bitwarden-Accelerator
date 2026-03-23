@@ -13,4 +13,4 @@ curl -s "${API}"/status
 
 log "${bwhost}:${bwport}"
 
-bw serve --hostname "${bwhost}" --port "${bwport}" &>/dev/null & disown
+"${BW_BIN}" serve --hostname "${bwhost}" --port "${bwport}" &>/dev/null & disown

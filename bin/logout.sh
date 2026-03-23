@@ -6,6 +6,6 @@ log "logout"
 
 ./bin/stop_server.sh
 
-bw --response logout | jq -j '.message // .data.title'
+"${BW_BIN}" --response logout | jq -j '.message // .data.title'
 rm -f "${DATA_DIR}"/*
 sudo -k

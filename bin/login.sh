@@ -17,7 +17,7 @@ OUT='{ "success": false, "message": "Login failed" }'
 
 # Configure Bitwarden server
 log "config server ${serverUrl}"
-bw config server "${serverUrl}" >& /dev/null
+"${BW_BIN}" config server "${serverUrl}" >& /dev/null
 
 bwuser=${bwuser:-"user@example.com"}
 
@@ -32,7 +32,7 @@ case "${loginMethod}" in
 	CODE=$(./bin/get_code.sh)
 
 	# shellcheck disable=2086
-	OUT=$(bw --response --nointeraction login "${USER}" --passwordenv PASS ${CODE})
+	OUT=$("${BW_BIN}" --response --nointeraction login "${USER}" --passwordenv PASS ${CODE})
 	;;
 
     "api_key")
@@ -64,7 +64,7 @@ case "${loginMethod}" in
 	    esac
 	fi
 
-	OUT=$(bw --response --nointeraction login --apikey)
+	OUT=$("${BW_BIN}" --response --nointeraction login --apikey)
 	;;
 esac
 
